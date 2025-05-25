@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  couriertracking_mongo:
+    image: mongo:6
+    container_name: couriertracking_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  couriertracking_redis:
+    image: redis:7
+    container_name: couriertracking_redis
+    ports:
+      - "6379:6379"
+
+  couriertracking_zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    container_name: couriertracking_zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  couriertracking_kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: couriertracking_kafka
+    depends_on:
+      - couriertracking_zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: couriertracking_zookeeper:2181
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://couriertracking_kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+
+  couriertracking_kafka_ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: couriertracking_kafka_ui
+    restart: unless-stopped
+    depends_on:
+      - couriertracking_kafka
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAP_SERVERS: couriertracking_kafka:9092
+    ports:
+      - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  couriertracking_api:
+    build:
+      context: ./courier-tracking-api
+    container_name: couriertracking_api
+    environment:
+      - ACTIVE_PROFILE=prod
+      - MONGO_URI=mongodb://couriertracking_mongo:27017
+      - REDIS_HOST=couriertracking_redis
+      - REDIS_PORT=6379
+      - KAFKA_BOOTSTRAP_SERVERS=couriertracking_kafka:9092
+    ports:
+      - "2801:80"
+    depends_on:
+      - couriertracking_mongo
+      - couriertracking_redis
+      - couriertracking_kafka
+
+  couriertracking_processor:
+    build:
+      context: ./courier-tracking-processor
+    container_name: couriertracking_processor
+    environment:
+      - ACTIVE_PROFILE=prod
+      - MONGO_URI=mongodb://couriertracking_mongo:27017
+      - REDIS_HOST=couriertracking_redis
+      - REDIS_PORT=6379
+      - KAFKA_BOOTSTRAP_SERVERS=couriertracking_kafka:9092
+    ports:
+      - "2802:80"
+    depends_on:
+      - couriertracking_mongo
+      - couriertracking_redis
+      - couriertracking_kafka
+
+volumes:
+  mongo-data:

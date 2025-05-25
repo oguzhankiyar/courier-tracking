@@ -1,0 +1,37 @@
+spring:
+  profiles:
+    active: ${ACTIVE_PROFILE:local}
+  application:
+    name: courier-tracking-processor
+    version: ${APP_VERSION:v1.0.0}
+    environment: ${APP_ENV:local}
+
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://localhost:27017}
+      database: ${MONGO_DATABASE:courier-tracking}
+    redis:
+
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:courier-tracking-processor}
+      client-id: ${KAFKA_CONSUMER_CLIENT_ID:courier-tracking-processor}
+
+springdoc:
+  swagger-ui:
+    path: /swagger
+
+hexagon:
+  resolution: 9
+  ring-radius: 1
+  max-distance-meters: 100
+
+entrance:
+  reentry-threshold-seconds: 60
+
+distance:
+  strategy: ${DISTANCE_STRATEGY:haversine}
